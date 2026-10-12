@@ -163,6 +163,25 @@ dialog .stack{gap:var(--space-3)}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .tg{display:inline-block;font-size:11px;font-weight:700;padding:0 6px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);margin-right:4px}
 
+/* ---- hiệu ứng chọn đáp án khi trình chiếu ---- */
+#stage .opt,#stage .ds i{cursor:pointer}
+#stage .opt:not(.bad):not(.ok):hover{transform:translateY(-2px);border-color:var(--primary)}
+.opt.bad{border-color:var(--danger)!important;background:color-mix(in srgb,var(--danger) 14%,var(--surface))!important;opacity:.8;animation:shake .45s}
+.opt.bad::after{content:"✗";margin-left:auto;font-weight:800;color:var(--danger);font-size:1.2em}
+.opt.pop{animation:popok .6s}
+.tf.done{border-color:var(--success)}.tf.shake{animation:shake .45s}
+.ds i.got{background:var(--success)!important;color:#fff!important;border-color:transparent!important;opacity:1!important}
+.ds i.bad{background:var(--danger)!important;color:#fff!important;border-color:transparent!important;opacity:1!important}
+.sin{flex:1;min-width:120px;max-width:340px;font:inherit;font-weight:700;padding:.2em .6em;border:3px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text)}
+.sin:focus{outline:none;border-color:var(--primary)}
+.sa.okk{border-style:solid;border-color:var(--success);animation:popok .6s}.sa.okk .sin{border-color:var(--success);color:var(--success)}
+.sa.nok{animation:shake .45s}.sa.nok .sin{border-color:var(--danger)}
+.sa .sin:disabled{opacity:1}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+@keyframes popok{0%{transform:scale(1)}40%{transform:scale(1.04)}100%{transform:scale(1.015)}}
+.fxp{position:fixed;z-index:60;pointer-events:none;width:10px;height:14px;border-radius:2px}
+@media (prefers-reduced-motion:reduce){.opt.bad,.tf.shake,.sa.nok,.opt.pop,.sa.okk{animation:none}}
+
 /* ===== card hiển thị câu hỏi (dùng cho xem trước và trình chiếu) ===== */
 .qcard{display:grid;gap:calc(var(--space-3)*var(--k));align-content:start}
 .stem{font-size:calc(clamp(22px,3.1vw,46px)*var(--k));line-height:1.45;font-weight:600}
@@ -366,6 +385,7 @@ dialog .stack{gap:var(--space-3)}
     <button class="btn" data-p="prev">◀ Trước</button>
     <button class="btn primary" data-p="reveal" id="pReveal">Hiện đáp án</button>
     <button class="btn" data-p="sol" id="pSol">Lời giải</button>
+    <button class="btn" data-p="snd" id="pSnd" aria-pressed="true" title="Bật/tắt âm thanh đúng sai (M)">🔊 Âm thanh</button>
     <button class="btn" data-p="draw" id="pDraw" aria-pressed="false" title="Bút vẽ (P)">✏️ Bút vẽ</button>
     <button class="btn" data-p="next">Sau ▶</button>
     <span class="row" role="group" aria-label="Cỡ chữ"><button class="btn" data-p="fs-" aria-label="Giảm cỡ chữ">A−</button><button class="btn" data-p="fs+" aria-label="Tăng cỡ chữ">A+</button></span>
@@ -448,7 +468,7 @@ const plain=s=>String(s==null?'':s).replace(/\$\$?/g,'').replace(/\\[a-zA-Z]+/g,
 /* ---------- dữ liệu ---------- */
 const LV={1:'Nhận biết',2:'Thông hiểu',3:'Vận dụng',4:'Vận dụng cao'};
 let Q=[];try{Q=JSON.parse(lsGet('ttn.deck','[]'))||[]}catch(e){Q=[]}
-const ST=Object.assign({fs:1,fsol:1,layout:'auto',theme:'light',timer:0,sel:0},(()=>{try{return JSON.parse(lsGet('ttn.set','{}'))}catch(e){return {}}})());
+const ST=Object.assign({fs:1,fsol:1,layout:'auto',theme:'light',timer:0,sel:0,snd:true},(()=>{try{return JSON.parse(lsGet('ttn.set','{}'))}catch(e){return {}}})());
 const saveDeck=()=>{if(!lsSet('ttn.deck',JSON.stringify(Q)))toast('Không lưu được vào trình duyệt (có thể do ảnh quá nặng). Hãy dùng "Lưu Excel" để giữ câu hỏi.')};
 const saveSet=()=>lsSet('ttn.set',JSON.stringify(ST));
 const TYPES={1:'Trắc nghiệm',2:'Đúng – Sai',3:'Trả lời ngắn'},TSHORT={1:'TN',2:'ĐS',3:'TLN'},ROMAN={1:'I',2:'II',3:'III'};
@@ -563,14 +583,14 @@ document.addEventListener('click',e=>{if(!e.target.closest('.pop')&&!e.target.cl
 document.addEventListener('focusin',e=>{if(e.target.matches&&e.target.matches('[data-ins]'))S.last=e.target});
 
 function figureHtml(q){return q.svg?q.svg:(q.img?`<img src="${esc(q.img)}" alt="Hình minh hoạ câu hỏi">`:'')}
-function cardHtml(q,{layout='cards',reveal=false,idx=0}={}){
+function cardHtml(q,{layout='cards',reveal=false,idx=0,play=false}={}){
   const hasFig=!!(q.svg||q.img);
   const lay=layout==='auto'?(hasFig?'split':'cards'):layout;
   const opts=q.opts.map((o,i)=>({o,i})).filter(x=>String(x.o).trim()!=='');
   const stem=`<div class="stem">${rm(q.title)}</div>`;
   const ty=qType(q);
-  const ohtml=ty===2?`<div class="tfs">${[0,1,2,3].filter(i=>String(q.opts[i]).trim()!=='').map(i=>`<div class="tf"><span class="lt">${'abcd'[i]}</span><span class="tx">${rm(q.opts[i])}</span><span class="ds"><i class="${q.tf[i]===true?'on':''}">Đúng</i><i class="${q.tf[i]===false?'on':''}">Sai</i></span></div>`).join('')}</div>`
-   :ty===3?`<div class="sa"><span class="sl">Đáp số</span><span class="sv">${rm(q.short)}</span></div>`
+  const ohtml=ty===2?`<div class="tfs">${[0,1,2,3].filter(i=>String(q.opts[i]).trim()!=='').map(i=>`<div class="tf" data-i="${i}"><span class="lt">${'abcd'[i]}</span><span class="tx">${rm(q.opts[i])}</span><span class="ds"><i data-v="1" class="${q.tf[i]===true?'on':''}">Đúng</i><i data-v="0" class="${q.tf[i]===false?'on':''}">Sai</i></span></div>`).join('')}</div>`
+   :ty===3?`<div class="sa"><span class="sl">Đáp số</span>${play?'<input class="sin" type="text" inputmode="decimal" autocomplete="off" placeholder="Nhập đáp số" aria-label="Nhập đáp số"><button class="btn primary" type="button" data-sa="chk">Kiểm tra</button>':''}<span class="sv">${rm(q.short)}</span></div>`
    :`<div class="opts">${opts.map(({o,i})=>`<div class="opt o-${'abcd'[i]}${reveal&&i===q.ans?' ok':''}"><span class="lt">${'ABCD'[i]}</span><span class="tx">${rm(o)}</span></div>`).join('')}</div>`;
   const fig=hasFig?`<div class="figbox">${figureHtml(q)}</div>`:'';
   const effLay=lay==='split'&&!hasFig?'cards':lay;
@@ -765,6 +785,7 @@ $('#geoDlg').addEventListener('click',e=>{const b=e.target.closest('[data-g]');i
 /* ---------- trình chiếu ---------- */
 const P={order:[],i:0,reveal:false,sol:false,left:0,tm:null};
 function applySettings(){
+  setTimeout(()=>{const b=$('#pSnd');if(b){b.setAttribute('aria-pressed',String(!!ST.snd));b.textContent=ST.snd?'🔊 Âm thanh':'🔇 Âm thanh'}},0);
   document.documentElement.setAttribute('data-theme',ST.theme);
   document.documentElement.style.setProperty('--k',ST.fs);document.documentElement.style.setProperty('--ks',ST.fsol);
   $('#pLayout').value=ST.layout;$('#pTheme').value=ST.theme;$('#pTimer').value=String(ST.timer);
@@ -790,7 +811,7 @@ function show(){
   const st=$('#stage'),sol=$('#sol');sol.classList.remove('on');st.style.paddingBottom='';st.scrollTop=0;
   if(P.i>=n){st.innerHTML=`<div class="endcard"><div>Hoàn thành ${n} câu</div><div class="row"><button class="btn primary" data-p="restart">Chiếu lại từ đầu</button><button class="btn" data-p="exit">Thoát</button></div></div>`;$('#ptimer').hidden=true;updBtns();return}
   const q=P.order[P.i];
-  st.innerHTML=`<div class="row" style="margin-bottom:var(--space-3)"><span class="lvl">${LV[q.level]||''}</span><span class="lvl typ">Phần ${ROMAN[qType(q)]} · ${TYPES[qType(q)]}</span></div>`+cardHtml(q,{layout:ST.layout,reveal:false});
+  st.innerHTML=`<div class="row" style="margin-bottom:var(--space-3)"><span class="lvl">${LV[q.level]||''}</span><span class="lvl typ">Phần ${ROMAN[qType(q)]} · ${TYPES[qType(q)]}</span></div>`+cardHtml(q,{layout:ST.layout,reveal:false,play:true});
   updBtns();startTimer();
 }
 function updBtns(){const n=P.order.length,end=P.i>=n;$('#pReveal').textContent=P.reveal?'Ẩn đáp án':'Hiện đáp án';$('#pReveal').disabled=end;$('#pSol').disabled=end||!String((P.order[P.i]||{}).sol||'').trim();$('#pSol').textContent=P.sol?'Ẩn lời giải':'Lời giải'}
@@ -807,6 +828,59 @@ function setSol(on){
 function startTimer(){const t=+ST.timer,el=$('#ptimer');if(!t){el.hidden=true;return}P.left=t;el.hidden=false;tick();P.tm=setInterval(()=>{P.left--;tick();if(P.left<=0){stopTimer();setReveal(true)}},1000)}
 function tick(){const el=$('#ptimer');el.textContent=P.left;el.classList.toggle('low',P.left<=5)}
 function stopTimer(){clearInterval(P.tm);P.tm=null}
+
+/* ---------- âm thanh + hiệu ứng khi chọn đáp án lúc trình chiếu ---------- */
+let AC=null;
+function audio(){try{if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(C)AC=new C()}if(AC&&AC.state==='suspended')AC.resume()}catch(e){}return AC}
+function tone(f,t0,d,type,vol,f2){const a=AC;if(!a)return;const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.setValueAtTime(f,a.currentTime+t0);if(f2)o.frequency.exponentialRampToValueAtTime(f2,a.currentTime+t0+d);g.gain.setValueAtTime(0.0001,a.currentTime+t0);g.gain.exponentialRampToValueAtTime(vol,a.currentTime+t0+0.02);g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+t0+d);o.connect(g);g.connect(a.destination);o.start(a.currentTime+t0);o.stop(a.currentTime+t0+d+0.05)}
+function sfx(kind){
+  if(!ST.snd||!audio())return;
+  try{
+    if(kind==='ok'){tone(659.25,0,.16,'sine',.28);tone(830.6,.1,.16,'sine',.28);tone(987.8,.2,.34,'sine',.3)}
+    else if(kind==='bad'){tone(220,0,.18,'sawtooth',.16,150);tone(150,.16,.3,'sawtooth',.16,90)}
+    else if(kind==='win'){[523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(f,i*.11,.22,'triangle',.28));tone(1046.5,.46,.5,'triangle',.3)}
+  }catch(e){}
+}
+function confetti(el){
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+  const r=(el||$('#stage')).getBoundingClientRect(),cx=r.left+Math.min(r.width,400)/2,cy=r.top+r.height/2,cols=['#f59e0b','#16a34a','#2563eb','#dc2626','#9333ea','#eab308'];
+  for(let i=0;i<28;i++){
+    const p=document.createElement('div');p.className='fxp';p.style.left=cx+'px';p.style.top=cy+'px';p.style.background=cols[i%cols.length];document.body.appendChild(p);
+    const ang=Math.random()*Math.PI*2,dist=90+Math.random()*190,dx=Math.cos(ang)*dist,dy=Math.sin(ang)*dist-80;
+    const an=p.animate([{transform:'translate(0,0) rotate(0)',opacity:1},{transform:`translate(${dx}px,${dy+160}px) rotate(${Math.random()*720}deg)`,opacity:0}],{duration:900+Math.random()*500,easing:'cubic-bezier(.2,.7,.3,1)'});
+    an.onfinish=()=>p.remove();
+  }
+}
+function setSnd(on){ST.snd=on;saveSet();const b=$('#pSnd');if(b){b.setAttribute('aria-pressed',String(on));b.textContent=on?'🔊 Âm thanh':'🔇 Âm thanh'}}
+const normAns=x=>String(x==null?'':x).toLowerCase().replace(/\$/g,'').replace(/\s+/g,'').replace(/,/g,'.').replace(/^\+/,'').replace(/\\dfrac|\\frac/g,'frac');
+function sameAns(a,b){const x=normAns(a),y=normAns(b);if(!x||!y)return false;if(x===y)return true;const n=parseFloat(x),m=parseFloat(y);return /^-?\d+(\.\d+)?$/.test(x)&&/^-?\d+(\.\d+)?$/.test(y)&&Math.abs(n-m)<=1e-9*Math.max(1,Math.abs(m))}
+function pickOpt(el){
+  const q=P.order[P.i];if(!q||qType(q)!==1||P.reveal||q.ans<0||el.classList.contains('bad'))return;
+  const i='abcd'.indexOf(el.className.match(/o-([abcd])/)[1]);
+  if(i===q.ans){setReveal(true);el.classList.add('pop');sfx('ok');confetti(el)}
+  else{el.classList.add('bad');sfx('bad')}
+}
+function pickTf(pill){
+  const q=P.order[P.i],row=pill.closest('.tf');if(!q||qType(q)!==2||!row||row.classList.contains('done')||pill.classList.contains('bad'))return;
+  const i=+row.dataset.i,v=pill.dataset.v==='1';
+  if(q.tf[i]===v){row.classList.add('done');pill.classList.add('got');sfx('ok');
+    if($$('#stage .tf').every(r=>r.classList.contains('done'))){setReveal(true);setTimeout(()=>{sfx('win');confetti(row)},350)}}
+  else{pill.classList.add('bad');row.classList.remove('shake');void row.offsetWidth;row.classList.add('shake');sfx('bad')}
+}
+function checkShort(){
+  const q=P.order[P.i],box=$('#stage .sa'),inp=$('#stage .sin');if(!q||qType(q)!==3||!box||!inp||P.reveal)return;
+  if(!inp.value.trim()){inp.focus();return}
+  if(sameAns(inp.value,q.short)){box.classList.remove('nok');box.classList.add('okk');inp.disabled=true;setReveal(true);sfx('ok');confetti(box)}
+  else{box.classList.remove('nok');void box.offsetWidth;box.classList.add('nok');sfx('bad');inp.select()}
+}
+$('#stage').addEventListener('click',e=>{
+  audio();
+  const o=e.target.closest('.opt');if(o)return pickOpt(o);
+  const p=e.target.closest('.ds i');if(p)return pickTf(p);
+  if(e.target.closest('[data-sa=chk]'))checkShort();
+});
+$('#stage').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('sin')){e.preventDefault();e.stopPropagation();checkShort()}});
+
 function go(d){if(P.i+d<0)return;P.i=Math.min(P.i+d,P.order.length);show()}
 function setFs(d){ST.fs=Math.min(1.8,Math.max(0.6,Math.round((ST.fs+d)*10)/10));saveSet();applySettings()}
 $('#present').addEventListener('click',e=>{
@@ -816,6 +890,7 @@ $('#present').addEventListener('click',e=>{
   else if(a==='fs+')setFs(0.1);else if(a==='fs-')setFs(-0.1);
   else if(a==='sf+'||a==='sf-'){ST.fsol=Math.min(1.8,Math.max(0.6,Math.round((ST.fsol+(a==='sf+'?0.1:-0.1))*10)/10));saveSet();applySettings()}
   else if(a==='full'){fsAsk('toggle')}
+  else if(a==='snd'){setSnd(!ST.snd);audio();sfx('ok')}
   else if(a==='draw'){toggleDraw()}
   else if(a==='restart'){P.i=0;show()}
 });
@@ -833,6 +908,8 @@ document.addEventListener('keydown',e=>{
   if(AN.open&&(k==='e'||k==='E')){annTool('erase');return}
   if(k==='ArrowRight'||k==='PageDown'){go(1)}else if(k==='ArrowLeft'||k==='PageUp'){go(-1)}
   else if(k===' '||k==='Enter'){e.preventDefault();if(P.i>=P.order.length)return;if(!P.reveal)setReveal(true);else go(1)}
+  else if(/^[1-4]$/.test(k)||/^[a-dA-D]$/.test(k)){const idx=/^\d$/.test(k)?+k-1:'abcd'.indexOf(k.toLowerCase()),el=$('#stage .opt.o-'+'abcd'[idx]);if(el)pickOpt(el)}
+  else if(k==='m'||k==='M'){setSnd(!ST.snd)}
   else if(k==='s'||k==='S'){setSol(!P.sol)}else if(k==='h'||k==='H'){$('#present').classList.toggle('focus')}
   else if(k==='f'||k==='F'){fsAsk('toggle')}
   else if(k==='+'||k==='='){setFs(0.1)}else if(k==='-'){setFs(-0.1)}else if(k==='Escape'){exitPlay()}
