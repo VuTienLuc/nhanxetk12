@@ -1599,7 +1599,7 @@ $('#fileList').addEventListener('change',e=>{if(e.target.dataset.grade==null)ret
 $('#fileList').addEventListener('input',e=>{if(e.target.dataset.lbl==null)return;const f=S.files.find(x=>x.id===e.target.closest('[data-fid]').dataset.fid);f.label=e.target.value||f.fileName;f.upd=Date.now();saveExams();renderResults(true)});
 $('#fileList').addEventListener('click',async e=>{const b=e.target.closest('[data-act=rmf]');if(!b)return;const id=b.closest('[data-fid]').dataset.fid,f=S.files.find(x=>x.id===id);
   if(!await ask({title:'Xóa đợt "'+f.label+'"?',msg:'Điểm của đợt này sẽ bị xóa khỏi tất cả các lớp.',ok:'Xóa đợt',danger:true}))return;
-  S.files=S.files.filter(x=>x.id!==id);if(S.active===id)S.active=null;if(S.split&&S.split.file===f.label)S.split=null;saveExams();renderStats();toast('Đã xóa đợt')});
+  gsTomb(f);S.files=S.files.filter(x=>x.id!==id);if(S.active===id)S.active=null;if(S.split&&S.split.file===f.label)S.split=null;saveExams();renderStats();toast('Đã xóa đợt');gsAuto()});
 document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)showTab(g.dataset.go)});
 
 function renderResults(keepTable){
@@ -1859,12 +1859,16 @@ $('#msgDlg').addEventListener('input',e=>{
 
 
 /* ---------- đồng bộ điểm qua Google Sheet (nhiều máy) ---------- */
-let GS={url:'',tok:'',auto:false,pull:false,last:null};try{Object.assign(GS,JSON.parse(lsGet('tkd.gs','{}'))||{})}catch(e){}
+let GS={url:'',tok:'',auto:false,pull:false,last:null,del:[]};try{Object.assign(GS,JSON.parse(lsGet('tkd.gs','{}'))||{})}catch(e){}
 const saveGs=()=>lsSet('tkd.gs',JSON.stringify(GS));
-const GS_CODE=`// Dán vào Apps Script của file Google Sheet (bản 3: đồng bộ nhiều máy, có phân khối)
+const exKey=f=>f.fileName+'|'+(f.date||'');
+function gsTomb(f){if(!Array.isArray(GS.del))GS.del=[];const k=exKey(f);GS.del=GS.del.filter(d=>d.k!==k);GS.del.push({k,t:Date.now()});saveGs()}
+const gsDelT=k=>{const d=(GS.del||[]).find(x=>x.k===k);return d?d.t:0};
+const GS_CODE=`// Dán vào Apps Script của file Google Sheet (bản 4: đồng bộ nhiều máy, phân khối, xóa đợt)
 const TOKEN = '';   // đặt mã bảo vệ nếu muốn, phải giống ô "Mã bảo vệ" trong app
-const V = 3;
-const LOP = '_Lop', DIEM = '_Diem';
+const V = 4;
+const LOP = '_Lop', DIEM = '_Diem', XOA = '_Xoa';
+const HX = ['Khóa', 'Thời điểm'];
 const HL = ['Lớp', 'Họ và tên', 'Ngày sinh', 'Tài khoản'];
 const HD = ['Tệp', 'Nhãn', 'Ngày', 'Cập nhật', 'Họ và tên', 'Tài khoản', 'Ngày sinh', 'Lớp', 'Điểm', 'Vi phạm', 'Trạng thái', 'Thời lượng', 'Khối'];
 function doPost(e) {
@@ -1915,8 +1919,9 @@ function pull(ss) {
     if (!exams[k]) { exams[k] = { fileName: String(r[0]), label: String(r[1]), date: String(r[2]), grade: String(r[12] || ''), upd: Number(r[3]) || 0, rows: [] }; order.push(k); }
     exams[k].rows.push({ name: String(r[4]), acc: String(r[5]), dob: String(r[6]), cls: String(r[7]), score: r[8] === '' ? null : Number(r[8]), viol: Number(r[9]) || 0, status: String(r[10]), dur: Number(r[11]) || 0 });
   });
+  const deleted = rows(store(ss, XOA, HX), 2).map(function (r) { return { k: String(r[0]), t: Number(r[1]) || 0 }; });
   return {
-    ok: true, v: V,
+    ok: true, v: V, deleted: deleted,
     classes: Object.keys(classes).map(function (n) { return { name: n, students: classes[n] }; }),
     exams: order.map(function (k) { return exams[k]; })
   };
@@ -1930,13 +1935,26 @@ function push(ss, d) {
     d.classes.forEach(function (c) { c.students.forEach(function (s) { keep.push([c.name, s.name, s.dob || '', s.acc || '']); }); });
     put(sh, keep, 4);
   }
+  const xs = store(ss, XOA, HX), tomb = {};
+  rows(xs, 2).forEach(function (r) { tomb[r[0]] = Math.max(tomb[r[0]] || 0, Number(r[1]) || 0); });
+  if (d.deletes && d.deletes.length) {
+    const sh = store(ss, DIEM, HD), cur = rows(sh, 13), gone = {};
+    cur.forEach(function (r) { const k = r[0] + '|' + r[2]; gone[k] = Math.max(gone[k] || 0, Number(r[3]) || 0); });
+    const del = {};
+    d.deletes.forEach(function (x) {
+      tomb[x.k] = Math.max(tomb[x.k] || 0, x.t);
+      if ((gone[x.k] || 0) <= x.t) del[x.k] = 1;
+    });
+    put(sh, cur.filter(function (r) { return !del[r[0] + '|' + r[2]]; }), 13);
+    put(xs, Object.keys(tomb).map(function (k) { return [k, tomb[k]]; }), 2);
+  }
   if (d.exams && d.exams.length) {
     const sh = store(ss, DIEM, HD), cur = rows(sh, 13), have = {};
     cur.forEach(function (r) { const k = r[0] + '|' + r[2]; have[k] = Math.max(have[k] || 0, Number(r[3]) || 0); });
     const redo = {};
     d.exams.forEach(function (x) {
       const k = x.fileName + '|' + (x.date || '');
-      if ((have[k] || 0) > (x.upd || 0)) { skipped++; return; }
+      if ((have[k] || 0) > (x.upd || 0) || (tomb[k] || 0) >= (x.upd || 0)) { skipped++; return; }
       redo[k] = x;
     });
     const keep = cur.filter(function (r) { return !redo[r[0] + '|' + r[2]]; });
@@ -1989,7 +2007,11 @@ async function gsPost(body){
 }
 const gsHasStu=(c,s)=>{const a=(s.acc||'').toLowerCase(),k=norm(s.name)+'|'+(s.dob||'');return c.students.some(x=>(a&&(x.acc||'').toLowerCase()===a)||(norm(x.name)+'|'+(x.dob||''))===k)};
 function gsMerge(r){
-  const n={c:0,s:0,e:0,u:0};
+  const n={c:0,s:0,e:0,u:0,d:0};
+  if(!Array.isArray(GS.del))GS.del=[];
+  (r.deleted||[]).forEach(d=>{if(d.t>gsDelT(d.k)){GS.del=GS.del.filter(x=>x.k!==d.k);GS.del.push({k:d.k,t:d.t})}});
+  GS.del=GS.del.filter(d=>Date.now()-d.t<90*864e5);
+  S.files=S.files.filter(l=>{const t=gsDelT(exKey(l));if(t&&(l.upd||0)<=t){n.d++;return false}return true});
   (r.classes||[]).forEach(rc=>{
     let c=classes.find(x=>norm(x.name)===norm(rc.name));
     if(!c){c={id:uid(),name:rc.name,students:[]};classes.push(c);n.c++}
@@ -1998,11 +2020,12 @@ function gsMerge(r){
   (r.exams||[]).forEach(e=>{
     const rows=e.rows.map(x=>({...x,score:x.score==null||x.score===''?null:Number(x.score)}));
     const l=S.files.find(x=>x.fileName===e.fileName&&(x.date||'')===(e.date||''));
+    if((e.upd||0)<=gsDelT(e.fileName+'|'+(e.date||'')))return;
     if(!l){S.files.push({id:uid(),label:e.label,fileName:e.fileName,date:e.date||'',rows,grade:e.grade||'',upd:e.upd||0});n.e++}
     else if((e.upd||0)>(l.upd||0)){l.rows=rows;l.label=e.label;l.grade=e.grade||'';l.upd=e.upd;n.u++}
   });
   S.files.sort((a,b)=>(a.date||'9').localeCompare(b.date||'9'));
-  if(n.c||n.s||n.e||n.u){saveClasses();saveExams();if(!getClass()&&classes.length){S.classId=classes[0].id;lsSet('tkd.sel',S.classId)}S.active=null;S.split=null}
+  if(n.c||n.s||n.e||n.u||n.d){saveGs();saveClasses();saveExams();if(!getClass()&&classes.length){S.classId=classes[0].id;lsSet('tkd.sel',S.classId)}S.active=null;S.split=null}
   return n;
 }
 function gsRefresh(){
@@ -2020,9 +2043,9 @@ async function gsSync(mode,quiet){
       const r=await gsPost({action:'pull',token:GS.tok||''});
       if(r.unconfirmed)throw new Error('Trình duyệt không đọc được phản hồi từ Google. Kiểm tra quyền truy cập Web App phải là "Bất kỳ ai".');
       if(!r.ok)throw new Error(r.error||'phản hồi lạ');
-      if(!(r.v>=3))throw new Error('Mã Apps Script chưa phải bản mới nhất (cần bản 3, có cột Khối). Hãy dán mã mới và tạo phiên bản triển khai mới.');
+      if(!(r.v>=4))throw new Error('Mã Apps Script chưa phải bản mới nhất (cần bản 4, có xóa đợt đồng bộ). Hãy dán mã mới và tạo phiên bản triển khai mới.');
       remote=r;const n=gsMerge(r);
-      if(n.c||n.s||n.e||n.u)parts.push('lấy về '+[n.e&&n.e+' đợt mới',n.u&&n.u+' đợt cập nhật',n.c&&n.c+' lớp mới',n.s&&n.s+' học sinh mới'].filter(Boolean).join(', '));
+      if(n.c||n.s||n.e||n.u||n.d)parts.push('lấy về '+[n.e&&n.e+' đợt mới',n.u&&n.u+' đợt cập nhật',n.c&&n.c+' lớp mới',n.s&&n.s+' học sinh mới',n.d&&'xóa '+n.d+' đợt đã xóa ở máy khác'].filter(Boolean).join(', '));
       else parts.push('không có dữ liệu mới trên Sheet');
     }
     if(mode!=='pull'){
@@ -2031,7 +2054,7 @@ async function gsSync(mode,quiet){
       const ex=S.files.filter(f=>{const k=f.fileName+'|'+(f.date||'');return !(k in idx)||f.upd>idx[k]||mode==='push'});
       const cl=classes.filter(c=>c.students.length).map(c=>({name:c.name,students:c.students.map(s=>({name:s.name,dob:s.dob||'',acc:s.acc||''}))}));
       const mats=classes.map(gsMatrix).filter(Boolean);
-      const r=await gsPost({action:'push',token:GS.tok||'',source:'thong-ke-diem-toan',sentAt:new Date().toISOString(),classes:cl,
+      const r=await gsPost({action:'push',token:GS.tok||'',source:'thong-ke-diem-toan',sentAt:new Date().toISOString(),classes:cl,deletes:GS.del||[],
         exams:ex.map(f=>({fileName:f.fileName,label:f.label,date:f.date||'',grade:f.grade||'',upd:f.upd,rows:f.rows.map(x=>({name:x.name,acc:x.acc||'',dob:x.dob||'',cls:x.cls||'',score:x.score==null?null:x.score,viol:x.viol||0,status:x.status||'',dur:x.dur||0}))})),matrices:mats});
       if(!r.unconfirmed&&!r.ok)throw new Error(r.error||'phản hồi lạ');
       parts.push(r.unconfirmed?'đã gửi '+ex.length+' đợt, '+cl.length+' lớp (chưa xác nhận được, hãy mở Sheet kiểm tra)':'đẩy lên '+ex.length+' đợt, '+cl.length+' lớp'+(r.skipped?' ('+r.skipped+' đợt trên Sheet mới hơn nên giữ nguyên)':''));
@@ -2052,7 +2075,7 @@ $('#gsTest').addEventListener('click',async()=>{
   try{const j=await gsPost({action:'ping',token:GS.tok||''});
     if(j.unconfirmed)gsStat('Đã gửi, nhưng trình duyệt không đọc được phản hồi. Kiểm tra quyền "Bất kỳ ai" của Web App.','bad');
     else if(!j.ok)gsStat('Lỗi: '+(j.error||'phản hồi lạ'),'bad');
-    else gsStat((j.msg||'Kết nối tốt')+(j.v>=3?'. Mã script là bản mới nhất.':'. Mã script là bản cũ, hãy dán mã mới ở bên dưới (bản 3, có phân khối).'),j.v>=3?'ok':'bad')}
+    else gsStat((j.msg||'Kết nối tốt')+(j.v>=4?'. Mã script là bản mới nhất.':'. Mã script là bản cũ, hãy dán mã mới ở bên dưới (bản 4, có xóa đợt đồng bộ).'),j.v>=4?'ok':'bad')}
   catch(e){gsStat('Không kết nối được. Kiểm tra địa chỉ và quyền truy cập "Bất kỳ ai".','bad')}
 });
 $('#gsSync').addEventListener('click',()=>{gsRead();gsSync('both')});
