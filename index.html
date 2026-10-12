@@ -1192,24 +1192,27 @@ footer{margin-top:var(--space-4);font-size:13px;color:var(--muted)}
   <section id="view-gs" hidden aria-labelledby="tab-gs">
     <div class="stack">
       <div class="card stack">
-        <div><h2>Đẩy bảng điểm lên Google Sheet</h2><p class="lead">Mỗi lớp là một trang tính riêng trong file Google Sheet của thầy: hàng là học sinh, cột là các đợt điểm, kèm điểm trung bình và số bài chưa làm. Mỗi lần đẩy sẽ ghi đè lại trang tính của lớp đó nên không bị trùng dòng.</p></div>
+        <div><h2>Đồng bộ điểm qua Google Sheet (dùng nhiều máy)</h2><p class="lead">Google Sheet là kho chung. Mỗi máy lấy phần mới từ Sheet về, gộp với dữ liệu của máy mình rồi đẩy lên lại, nên các máy luôn có đủ danh sách lớp và mọi đợt điểm. Mỗi lớp còn có một trang tính bảng điểm dễ đọc: hàng là học sinh, cột là các đợt, kèm điểm trung bình.</p></div>
         <label class="f">Địa chỉ Web App (Apps Script)<input type="url" id="gsUrl" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off"></label>
         <label class="f">Mã bảo vệ (không bắt buộc, phải giống dòng TOKEN trong script)<input type="text" id="gsTok" autocomplete="off"></label>
-        <label class="chk"><input type="checkbox" id="gsAuto"> Tự động đẩy lên ngay sau khi tải file điểm của một đợt</label>
-        <div class="row"><button class="btn" id="gsTest">Kiểm tra kết nối</button><button class="btn primary" id="gsPushCur">Đẩy lớp đang chọn</button><button class="btn" id="gsPushAll">Đẩy tất cả các lớp</button></div>
+        <label class="chk"><input type="checkbox" id="gsAuto"> Tự động đồng bộ sau khi tải file điểm của một đợt</label>
+        <label class="chk"><input type="checkbox" id="gsPull"> Tự lấy dữ liệu mới từ Sheet về khi mở app</label>
+        <div class="row"><button class="btn primary" id="gsSync">Đồng bộ ngay (lấy về rồi đẩy lên)</button><button class="btn" id="gsPullBtn">Chỉ lấy về máy này</button><button class="btn" id="gsTest">Kiểm tra kết nối</button></div>
         <div id="gsStat" class="lead" role="status" aria-live="polite"></div>
+        <p class="lead">Cách gộp: lớp và học sinh chỉ được thêm, không bị xóa. Đợt điểm nào có bản mới hơn (theo thời điểm tải file hoặc sửa tên đợt) thì bản đó được giữ. Khi cả hai máy cùng tải lại một đợt, bản tải sau cùng thắng. Xóa đợt hoặc xóa học sinh trên một máy không xóa trên Sheet và các máy khác. Trạng thái "đã nhắn" chưa đồng bộ, hãy dùng file sao lưu nếu cần.</p>
       </div>
       <div class="card stack">
         <div><h2>Cài đặt một lần (khoảng 3 phút)</h2></div>
         <ol class="lead gsol">
-          <li>Mở file Google Sheet cần ghi điểm, chọn <strong>Tiện ích mở rộng</strong> rồi <strong>Apps Script</strong>.</li>
+          <li>Mở file Google Sheet dùng làm kho chung, chọn <strong>Tiện ích mở rộng</strong> rồi <strong>Apps Script</strong>.</li>
           <li>Xóa mã mẫu, dán đoạn mã bên dưới (bấm nút sao chép), bấm biểu tượng lưu.</li>
           <li>Bấm <strong>Triển khai</strong>, <strong>Tùy chọn triển khai mới</strong>, loại <strong>Ứng dụng web</strong>. Thực thi với tư cách <strong>Tôi</strong>, người có quyền truy cập: <strong>Bất kỳ ai</strong>. Cấp quyền khi Google hỏi.</li>
-          <li>Sao chép <strong>URL ứng dụng web</strong> dán vào ô địa chỉ ở trên, bấm <strong>Kiểm tra kết nối</strong>.</li>
+          <li>Sao chép <strong>URL ứng dụng web</strong>, dán vào ô địa chỉ ở trên trên <strong>mọi máy</strong> (cùng một địa chỉ), bấm <strong>Kiểm tra kết nối</strong>.</li>
+          <li>Nếu trước đây đã dán mã cũ: thay bằng mã mới này, rồi chọn <strong>Triển khai</strong>, <strong>Quản lý triển khai</strong>, biểu tượng bút chì, <strong>Phiên bản mới</strong>, <strong>Triển khai</strong>. Địa chỉ giữ nguyên.</li>
         </ol>
-        <textarea id="gsCode" readonly rows="12" spellcheck="false" aria-label="Mã Apps Script"></textarea>
+        <textarea id="gsCode" readonly rows="14" spellcheck="false" aria-label="Mã Apps Script"></textarea>
         <div class="row"><button class="btn" id="gsCopy">Sao chép mã</button></div>
-        <p class="lead">Lưu ý: ai biết địa chỉ Web App đều gửi được dữ liệu vào file của thầy, nên hãy đặt mã bảo vệ và đừng chia sẻ địa chỉ. Nếu sửa mã script, phải chọn Triển khai, Quản lý triển khai, Phiên bản mới thì mới có hiệu lực.</p>
+        <p class="lead">Trong file Sheet sẽ có hai trang tính ẩn tên <strong>_Lop</strong> và <strong>_Diem</strong> làm kho dữ liệu, đừng xóa hoặc sửa tay. Các trang tính tên lớp (ví dụ 10A4) là bảng điểm để xem và in, được tạo lại mỗi lần đồng bộ. Ai biết địa chỉ Web App đều đọc và ghi được dữ liệu, nên hãy đặt mã bảo vệ và đừng chia sẻ địa chỉ.</p>
       </div>
     </div>
   </section>
@@ -1223,10 +1226,11 @@ footer{margin-top:var(--space-4);font-size:13px;color:var(--muted)}
           <label class="f">Lớp<select id="clsSel"></select></label>
           <div id="clsInfo" class="lead" style="align-self:end"></div>
         </div>
+        <label class="f" style="max-width:420px">Khối của file điểm sắp tải lên<select id="scoreGrade"><option value="10">Khối 10 (chỉ các lớp 10...)</option><option value="11">Khối 11 (chỉ các lớp 11...)</option><option value="12">Khối 12 (chỉ các lớp 12...)</option><option value="">Mọi khối (áp dụng cho tất cả các lớp)</option></select></label>
         <label class="drop" id="dropScore">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
           <strong>Chọn hoặc thả file điểm (file tổng hợp nhiều lớp cũng được)</strong>
-          <span class="muted">Mỗi file là một đợt. App tự chia về từng lớp theo danh sách. Cần có cột Họ và tên và Điểm.</span>
+          <span class="muted">Mỗi file là một đợt của một khối: chọn khối ở trên, app chỉ chia điểm về các lớp thuộc khối đó. Cần có cột Họ và tên và Điểm.</span>
           <input type="file" id="fScore" accept=".xlsx,.xls,.csv" multiple>
         </label>
         <div id="fileList" class="files"></div>
@@ -1346,6 +1350,11 @@ let exams=[];try{exams=JSON.parse(lsGet('tkd.exams','[]'))||[]}catch(e){exams=[]
 const saveExams=()=>{if(!lsSet('tkd.exams',JSON.stringify(S.files)))toast('Không lưu được các đợt điểm (bộ nhớ trình duyệt đầy hoặc bị chặn).')};
 const S={classId:lsGet('tkd.sel',''),files:exams,split:null,active:null,sort:{key:'stt',dir:1},filter:'all',q:'',open:new Set(),imp:null};
 const getClass=()=>classes.find(c=>c.id===S.classId)||null;
+/* khối: file điểm gắn với một khối (10, 11, 12) chỉ áp dụng cho các lớp có tên bắt đầu bằng khối đó */
+const gradeOf=n=>{const m=norm(n).match(/^(?:lop\s*)?(1[0-2])(?!\d)/);return m?m[1]:''};
+const applies=(f,c)=>!f.grade||gradeOf(c.name)===f.grade;
+const filesFor=c=>S.files.filter(f=>applies(f,c));
+const gradeTxt=g=>g?'Khối '+g:'Mọi khối';
 
 /* ---------- tabs ---------- */
 function showTab(t){
@@ -1487,18 +1496,20 @@ wireDrop($('#dropScore'),$('#fScore'),async fs=>{
         if(!await ask({title:'Đợt này đã được tải',msg:'File "'+f.name+'" đã có trong danh sách các đợt. Thay bằng bản mới?',ok:'Thay thế',danger:true}))continue;
         S.files.splice(dupI,1);
       }
-      const id=uid();S.files.push({id,label:baseName(f.name).replace(/^[0-9a-f]{8}-/i,''),fileName:f.name,date,rows});
+      const id=uid();S.files.push({id,label:baseName(f.name).replace(/^[0-9a-f]{8}-/i,''),fileName:f.name,date,rows,grade:$('#scoreGrade').value,upd:Date.now()});
       S.files.sort((a,b)=>(a.date||'9').localeCompare(b.date||'9'));
       S.active=id;saveExams();
       const sp=splitSummary(S.files.find(x=>x.id===id));S.split=sp;sp.parts.forEach(p=>touched.add(p.id));
       if(sp.parts.length&&!sp.parts.some(p=>p.id===S.classId)){S.classId=sp.parts[0].id;lsSet('tkd.sel',S.classId)}
-      toast('Đã chia '+sp.matched+'/'+rows.length+' dòng vào '+sp.parts.length+' lớp');
+      toast('Đã chia '+sp.matched+'/'+rows.length+' dòng vào '+sp.parts.length+' lớp ('+gradeTxt($('#scoreGrade').value).toLowerCase()+')');
     }catch(e){toast(f.name+': không đọc được ('+(e.message||e)+')')}
   }
   renderStats();
-  if(touched.size)gsAuto([...touched]);
+  if(touched.size)gsAuto();
 });
-$('#clsSel').addEventListener('change',e=>{S.classId=e.target.value;lsSet('tkd.sel',S.classId);renderStats()});
+$('#clsSel').addEventListener('change',e=>{S.classId=e.target.value;lsSet('tkd.sel',S.classId);const g=getClass()&&gradeOf(getClass().name);if(g){$('#scoreGrade').value=g;lsSet('tkd.grade',g)}renderStats()});
+$('#scoreGrade').addEventListener('change',e=>lsSet('tkd.grade',e.target.value));
+(()=>{const g=lsGet('tkd.grade','');const c=classes.find(x=>x.id===S.classId);$('#scoreGrade').value=g!==''?g:(c&&gradeOf(c.name))||'10'})();
 
 const TIERS=[{k:'Tốt',r:'≥ 8',c:'--t1'},{k:'Khá',r:'6,5 – dưới 8',c:'--t2'},{k:'Đạt',r:'5 – dưới 6,5',c:'--t3'},{k:'Chưa đạt',r:'dưới 5',c:'--t4'}];
 const tierOf=s=>s>=8?0:s>=6.5?1:s>=5?2:3;
@@ -1509,8 +1520,8 @@ function compute(file,cls){
   R.forEach((s,i)=>{if(s.acc)idx.acc.set(s.acc.toLowerCase(),i);const k=norm(s.name);(idx.name.get(k)||idx.name.set(k,[]).get(k)).push(i)});
   const ent=R.map((s,i)=>({i,s,score:null,viol:0,status:'',n:0,dur:0,sus:[]}));
   const extra=[];let dup=0;const used=new Set();
-  const hit=new Set(),clsKey=norm(cls.name),known=new Set(classes.map(c=>norm(c.name)));
-  file.rows.forEach(r=>{
+  const hit=new Set(),clsKey=norm(cls.name),known=new Set(classes.filter(c=>applies(file,c)).map(c=>norm(c.name)));
+  (applies(file,cls)?file.rows:[]).forEach(r=>{
     let j=-1;
     if(r.cls&&norm(r.cls)!==clsKey&&known.has(norm(r.cls))){extra.push(r);return}
     if(r.acc&&idx.acc.has(r.acc.toLowerCase()))j=idx.acc.get(r.acc.toLowerCase());
@@ -1579,11 +1590,13 @@ function renderStats(){
     $('#results').innerHTML=`<div class="card empty"><strong>Chưa có lớp để thống kê</strong><span>Tạo lớp từ file Excel danh sách trước, rồi quay lại đây tải file điểm.</span><button class="btn primary" data-go="classes">Tạo lớp</button></div>`;return;
   }
   $('#fileList').innerHTML=S.files.map((f,i)=>`<div class="file" data-fid="${f.id}">
-    <label class="f">Đợt ${i+1} <span>${esc(f.fileName)} · ${f.rows.length} dòng${f.date?' · ngày làm '+f.date.split('-').reverse().join('/'):''}</span><input type="text" data-lbl value="${esc(f.label)}"></label>
+    <label class="f">Đợt ${i+1} <span>${esc(f.fileName)} · ${gradeTxt(f.grade)} · ${f.rows.length} dòng${f.date?' · ngày làm '+f.date.split('-').reverse().join('/'):''}</span><input type="text" data-lbl value="${esc(f.label)}"></label>
+    <label class="f">Khối<select data-grade>${['10','11','12',''].map(g=>`<option value="${g}"${(f.grade||'')===g?' selected':''}>${g?'Khối '+g:'Mọi khối'}</option>`).join('')}</select></label>
     <button class="btn danger-o" data-act="rmf" aria-label="Xóa đợt ${esc(f.label)}">Xóa đợt</button></div>`).join('');
   renderResults();
 }
-$('#fileList').addEventListener('input',e=>{if(e.target.dataset.lbl==null)return;const f=S.files.find(x=>x.id===e.target.closest('[data-fid]').dataset.fid);f.label=e.target.value||f.fileName;saveExams();renderResults(true)});
+$('#fileList').addEventListener('change',e=>{if(e.target.dataset.grade==null)return;const f=S.files.find(x=>x.id===e.target.closest('[data-fid]').dataset.fid);f.grade=e.target.value;f.upd=Date.now();S.split=null;saveExams();renderStats();toast('Đã đổi khối của đợt thành '+gradeTxt(f.grade).toLowerCase())});
+$('#fileList').addEventListener('input',e=>{if(e.target.dataset.lbl==null)return;const f=S.files.find(x=>x.id===e.target.closest('[data-fid]').dataset.fid);f.label=e.target.value||f.fileName;f.upd=Date.now();saveExams();renderResults(true)});
 $('#fileList').addEventListener('click',async e=>{const b=e.target.closest('[data-act=rmf]');if(!b)return;const id=b.closest('[data-fid]').dataset.fid,f=S.files.find(x=>x.id===id);
   if(!await ask({title:'Xóa đợt "'+f.label+'"?',msg:'Điểm của đợt này sẽ bị xóa khỏi tất cả các lớp.',ok:'Xóa đợt',danger:true}))return;
   S.files=S.files.filter(x=>x.id!==id);if(S.active===id)S.active=null;if(S.split&&S.split.file===f.label)S.split=null;saveExams();renderStats();toast('Đã xóa đợt')});
@@ -1591,9 +1604,11 @@ document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g
 
 function renderResults(keepTable){
   const cls=getClass(),box=$('#results');
+  const mine=filesFor(cls);
+  if(S.files.length&&!mine.length){box.innerHTML=`<div class="card empty"><strong>Chưa có file điểm ${esc(gradeOf(cls.name)?'khối '+gradeOf(cls.name):'cho lớp này')}</strong><span>Lớp ${esc(cls.name)} ${gradeOf(cls.name)?'thuộc khối '+gradeOf(cls.name)+'. Chọn "Khối '+gradeOf(cls.name)+'" ở trên rồi tải file điểm của khối này, hoặc đổi khối của đợt đã tải.':'có tên không bắt đầu bằng 10, 11 hoặc 12 nên chỉ nhận file đặt là "Mọi khối".'}</span></div>`;return}
   if(!S.files.length){box.innerHTML=`<div class="card empty"><strong>Chưa có file điểm</strong><span>Tải file Excel điểm ở trên (file tổng hợp nhiều lớp cũng được). App tự chia điểm về từng lớp và chỉ ra ai chưa làm bài. Mỗi lần tải là một đợt, được lưu lại.</span></div>`;return}
-  if(!S.active||(S.active!=='sum'&&!S.files.find(f=>f.id===S.active)))S.active=S.files[S.files.length-1].id;
-  const comps=S.files.map(f=>({f,c:compute(f,cls)}));
+  if(!S.active||(S.active!=='sum'&&!mine.find(f=>f.id===S.active)))S.active=mine[mine.length-1].id;
+  const comps=mine.map(f=>({f,c:compute(f,cls)}));
   S.comps=comps;
   const pills=comps.map(({f})=>`<button class="pill" aria-pressed="${S.active===f.id}" data-pick="${f.id}" title="${esc(f.label)}">${esc(f.label)}</button>`).join('')+(comps.length>1?`<button class="pill" aria-pressed="${S.active==='sum'}" data-pick="sum">Tổng hợp ${comps.length} đợt</button>`:'');
   let body='';
@@ -1632,7 +1647,7 @@ function splitPanel(){
 function overview(){
   if(classes.length<2||!S.files.length)return'';
   const head=classes.map(c=>`<th class="num">${esc(c.name)}</th>`).join('');
-  const body=S.files.map(f=>`<tr><td>${esc(f.label)}</td>${classes.map(c=>{const x=compute(f,c);return`<td class="num">${x.done?x.done+'/'+x.n+' · TB '+fmt(x.avg):'<span class="muted">chưa có</span>'}</td>`}).join('')}</tr>`).join('');
+  const body=S.files.map(f=>`<tr><td>${esc(f.label)} <span class="muted">· ${gradeTxt(f.grade)}</span></td>${classes.map(c=>{if(!applies(f,c))return'<td class="num"><span class="muted">—</span></td>';const x=compute(f,c);return`<td class="num">${x.done?x.done+'/'+x.n+' · TB '+fmt(x.avg):'<span class="muted">chưa có</span>'}</td>`}).join('')}</tr>`).join('');
   return`<details class="card" open><summary>Tổng quan các lớp theo đợt</summary><div class="tbl-wrap"><table><thead><tr><th>Đợt</th>${head}</tr></thead><tbody>${body}</tbody></table></div></details>`;
 }
 function kpi(l,v,s,cls=''){return`<div class="kpi ${cls}"><span class="l">${l}</span><span class="v">${v}</span><span class="s" title="${esc(s)}">${esc(s)}&nbsp;</span></div>`}
@@ -1843,88 +1858,207 @@ $('#msgDlg').addEventListener('input',e=>{
 });
 
 
-/* ---------- đẩy điểm lên Google Sheet ---------- */
-let GS={url:'',tok:'',auto:false,last:null};try{Object.assign(GS,JSON.parse(lsGet('tkd.gs','{}'))||{})}catch(e){}
+/* ---------- đồng bộ điểm qua Google Sheet (nhiều máy) ---------- */
+let GS={url:'',tok:'',auto:false,pull:false,last:null};try{Object.assign(GS,JSON.parse(lsGet('tkd.gs','{}'))||{})}catch(e){}
 const saveGs=()=>lsSet('tkd.gs',JSON.stringify(GS));
-const GS_CODE=`// Dán vào Apps Script của file Google Sheet, rồi Triển khai > Ứng dụng web
+const GS_CODE=`// Dán vào Apps Script của file Google Sheet (bản 3: đồng bộ nhiều máy, có phân khối)
 const TOKEN = '';   // đặt mã bảo vệ nếu muốn, phải giống ô "Mã bảo vệ" trong app
+const V = 3;
+const LOP = '_Lop', DIEM = '_Diem';
+const HL = ['Lớp', 'Họ và tên', 'Ngày sinh', 'Tài khoản'];
+const HD = ['Tệp', 'Nhãn', 'Ngày', 'Cập nhật', 'Họ và tên', 'Tài khoản', 'Ngày sinh', 'Lớp', 'Điểm', 'Vi phạm', 'Trạng thái', 'Thời lượng', 'Khối'];
 function doPost(e) {
+  const lock = LockService.getScriptLock();
   try {
     const d = JSON.parse(e.postData.contents);
     if (TOKEN && d.token !== TOKEN) return out({ ok: false, error: 'Sai mã bảo vệ' });
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (d.action === 'ping') return out({ ok: true, msg: 'Kết nối tốt với file: ' + ss.getName() });
-    (d.classes || []).forEach(function (c) {
-      const sh = ss.getSheetByName(c.name) || ss.insertSheet(c.name);
-      sh.clear();
-      const w = c.rows[0].length;
-      sh.getRange(1, 1, c.rows.length, w).setValues(c.rows);
-      sh.getRange(1, 1, 1, w).setFontWeight('bold').setBackground('#ffedd5');
-      sh.setFrozenRows(1); sh.setFrozenColumns(2);
-      sh.autoResizeColumns(1, w);
-    });
-    return out({ ok: true, msg: 'Đã cập nhật ' + (d.classes || []).length + ' lớp' });
+    if (d.action === 'ping') return out({ ok: true, v: V, msg: 'Kết nối tốt với file: ' + ss.getName() });
+    lock.waitLock(25000);
+    if (d.action === 'pull') return out(pull(ss));
+    if (d.action === 'push') return out(push(ss, d));
+    return out({ ok: false, error: 'Lệnh không hợp lệ' });
   } catch (err) { return out({ ok: false, error: String(err) }); }
+  finally { try { lock.releaseLock(); } catch (x) {} }
 }
-function out(o) {
-  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+function store(ss, name, head) {
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold');
+    sh.getRange(2, 1, 1000, head.length).setNumberFormat('@');
+    sh.hideSheet();
+  }
+  return sh;
+}
+function rows(sh, w) {
+  const n = sh.getLastRow();
+  return n < 2 ? [] : sh.getRange(2, 1, n - 1, w).getValues();
+}
+function put(sh, data, w) {
+  const n = sh.getLastRow();
+  if (n > 1) sh.getRange(2, 1, n - 1, w).clearContent();
+  if (data.length) {
+    sh.getRange(2, 1, data.length, w).setNumberFormat('@');
+    sh.getRange(2, 1, data.length, w).setValues(data);
+  }
+}
+function pull(ss) {
+  const classes = {};
+  rows(store(ss, LOP, HL), 4).forEach(function (r) {
+    (classes[r[0]] = classes[r[0]] || []).push({ name: String(r[1]), dob: String(r[2]), acc: String(r[3]) });
+  });
+  const exams = {}, order = [];
+  rows(store(ss, DIEM, HD), 13).forEach(function (r) {
+    const k = r[0] + '|' + r[2];
+    if (!exams[k]) { exams[k] = { fileName: String(r[0]), label: String(r[1]), date: String(r[2]), grade: String(r[12] || ''), upd: Number(r[3]) || 0, rows: [] }; order.push(k); }
+    exams[k].rows.push({ name: String(r[4]), acc: String(r[5]), dob: String(r[6]), cls: String(r[7]), score: r[8] === '' ? null : Number(r[8]), viol: Number(r[9]) || 0, status: String(r[10]), dur: Number(r[11]) || 0 });
+  });
+  return {
+    ok: true, v: V,
+    classes: Object.keys(classes).map(function (n) { return { name: n, students: classes[n] }; }),
+    exams: order.map(function (k) { return exams[k]; })
+  };
+}
+function push(ss, d) {
+  let skipped = 0;
+  if (d.classes && d.classes.length) {
+    const sh = store(ss, LOP, HL), names = {};
+    d.classes.forEach(function (c) { names[c.name] = 1; });
+    const keep = rows(sh, 4).filter(function (r) { return !names[r[0]]; });
+    d.classes.forEach(function (c) { c.students.forEach(function (s) { keep.push([c.name, s.name, s.dob || '', s.acc || '']); }); });
+    put(sh, keep, 4);
+  }
+  if (d.exams && d.exams.length) {
+    const sh = store(ss, DIEM, HD), cur = rows(sh, 13), have = {};
+    cur.forEach(function (r) { const k = r[0] + '|' + r[2]; have[k] = Math.max(have[k] || 0, Number(r[3]) || 0); });
+    const redo = {};
+    d.exams.forEach(function (x) {
+      const k = x.fileName + '|' + (x.date || '');
+      if ((have[k] || 0) > (x.upd || 0)) { skipped++; return; }
+      redo[k] = x;
+    });
+    const keep = cur.filter(function (r) { return !redo[r[0] + '|' + r[2]]; });
+    Object.keys(redo).forEach(function (k) {
+      const x = redo[k];
+      x.rows.forEach(function (r) {
+        keep.push([x.fileName, x.label, x.date || '', x.upd || 0, r.name, r.acc || '', r.dob || '', r.cls || '', r.score == null ? '' : r.score, r.viol || 0, r.status || '', r.dur || 0, x.grade || '']);
+      });
+    });
+    put(sh, keep, 13);
+  }
+  (d.matrices || []).forEach(function (m) {
+    let sh = ss.getSheetByName(m.name) || ss.insertSheet(m.name);
+    sh.clear();
+    const w = m.rows[0].length;
+    sh.getRange(1, 1, m.rows.length, w).setValues(m.rows);
+    sh.getRange(1, 1, 1, w).setFontWeight('bold').setBackground('#ffedd5');
+    sh.setFrozenRows(1); sh.setFrozenColumns(2);
+    sh.autoResizeColumns(1, w);
+  });
+  return { ok: true, v: V, skipped: skipped };
 }`;
 function gsStat(msg,kind){const el=$('#gsStat');if(el){el.textContent=msg;el.style.color=kind==='bad'?'var(--bad,#b91c1c)':kind==='ok'?'var(--good,#15803d)':''}}
 function renderGs(){
-  $('#gsUrl').value=GS.url||'';$('#gsTok').value=GS.tok||'';$('#gsAuto').checked=!!GS.auto;$('#gsCode').value=GS_CODE;
-  gsStat(GS.last?GS.last.msg+' ('+new Date(GS.last.t).toLocaleString('vi-VN')+')':'Chưa đẩy lần nào.',GS.last&&GS.last.ok?'ok':GS.last?'bad':'');
+  $('#gsUrl').value=GS.url||'';$('#gsTok').value=GS.tok||'';$('#gsAuto').checked=!!GS.auto;$('#gsPull').checked=!!GS.pull;$('#gsCode').value=GS_CODE;
+  gsStat(GS.last?GS.last.msg+' ('+new Date(GS.last.t).toLocaleString('vi-VN')+')':'Chưa đồng bộ lần nào.',GS.last&&GS.last.ok?'ok':GS.last?'bad':'');
 }
-function gsSheetName(n){return String(n).replace(/[\[\]*?:\/\\]/g,'-').slice(0,90)||'Lop'}
-function gsClassRows(cls){
-  const comps=S.files.map(f=>({f,c:compute(f,cls)})).filter(x=>x.c.matched>0);
-  const head=['STT','Họ và tên','Ngày sinh','Tài khoản',...comps.map(x=>x.f.label),'Điểm TB','Số bài chưa làm'];
-  const rows=[head];
+const gsName=n=>String(n).replace(/[\[\]*?:\/\\]/g,'-').slice(0,90)||'Lop';
+function gsMatrix(cls){
+  const comps=filesFor(cls).map(f=>({f,c:compute(f,cls)})).filter(x=>x.c.matched>0);
+  if(!comps.length)return null;
+  const rows=[['STT','Họ và tên','Ngày sinh','Tài khoản',...comps.map(x=>x.f.label),'Điểm TB','Số bài chưa làm']];
   cls.students.forEach((s,i)=>{
     const sc=comps.map(x=>x.c.ent[i].score),got=sc.filter(v=>v!=null);
     rows.push([i+1,s.name,s.dob||'',s.acc||'',...sc.map(v=>v==null?'Chưa làm':v),got.length?r2(got.reduce((a,b)=>a+b,0)/got.length):'',sc.length-got.length]);
   });
-  return{name:gsSheetName(cls.name),rows,exams:comps.length};
+  return{name:gsName(cls.name),rows};
 }
 async function gsPost(body){
   const opt={method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),redirect:'follow'};
-  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),30000);
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),45000);
   try{
-    try{const r=await fetch(GS.url,{...opt,signal:ctl.signal});const j=await r.json();return j}
+    try{const r=await fetch(GS.url,{...opt,signal:ctl.signal});return await r.json()}
     catch(e){
       if(e.name==='AbortError')throw e;
       await fetch(GS.url,{...opt,mode:'no-cors',signal:ctl.signal});
-      return{ok:true,unconfirmed:true,msg:'Đã gửi, trình duyệt không cho đọc phản hồi nên chưa xác nhận được. Hãy mở Google Sheet để kiểm tra.'};
+      return{ok:true,unconfirmed:true};
     }
   }finally{clearTimeout(to)}
 }
+const gsHasStu=(c,s)=>{const a=(s.acc||'').toLowerCase(),k=norm(s.name)+'|'+(s.dob||'');return c.students.some(x=>(a&&(x.acc||'').toLowerCase()===a)||(norm(x.name)+'|'+(x.dob||''))===k)};
+function gsMerge(r){
+  const n={c:0,s:0,e:0,u:0};
+  (r.classes||[]).forEach(rc=>{
+    let c=classes.find(x=>norm(x.name)===norm(rc.name));
+    if(!c){c={id:uid(),name:rc.name,students:[]};classes.push(c);n.c++}
+    (rc.students||[]).forEach(s=>{if(!gsHasStu(c,s)){c.students.push({name:s.name,dob:s.dob||'',acc:s.acc||''});n.s++}});
+  });
+  (r.exams||[]).forEach(e=>{
+    const rows=e.rows.map(x=>({...x,score:x.score==null||x.score===''?null:Number(x.score)}));
+    const l=S.files.find(x=>x.fileName===e.fileName&&(x.date||'')===(e.date||''));
+    if(!l){S.files.push({id:uid(),label:e.label,fileName:e.fileName,date:e.date||'',rows,grade:e.grade||'',upd:e.upd||0});n.e++}
+    else if((e.upd||0)>(l.upd||0)){l.rows=rows;l.label=e.label;l.grade=e.grade||'';l.upd=e.upd;n.u++}
+  });
+  S.files.sort((a,b)=>(a.date||'9').localeCompare(b.date||'9'));
+  if(n.c||n.s||n.e||n.u){saveClasses();saveExams();if(!getClass()&&classes.length){S.classId=classes[0].id;lsSet('tkd.sel',S.classId)}S.active=null;S.split=null}
+  return n;
+}
+function gsRefresh(){
+  const t=document.querySelector('.tab[aria-selected=true]');if(!t)return;
+  if(t.dataset.tab==='stats')renderStats();else if(t.dataset.tab==='classes')renderClasses()
+}
 let gsBusy=false;
-async function gsPush(ids,quiet){
+async function gsSync(mode,quiet){
   if(!GS.url||!/^https:\/\/script\.google(usercontent)?\.com\//.test(GS.url)){gsStat('Hãy dán địa chỉ Web App (bắt đầu bằng https://script.google.com/) rồi lưu.','bad');if(!quiet)toast('Chưa có địa chỉ Web App hợp lệ');return false}
-  if(gsBusy)return false;
-  const list=classes.filter(c=>ids.includes(c.id)).map(gsClassRows);
-  if(!list.length){gsStat('Không có lớp nào để đẩy.','bad');return false}
-  gsBusy=true;gsStat('Đang đẩy '+list.length+' lớp lên Google Sheet...');
+  if(gsBusy)return false;gsBusy=true;
+  const parts=[];let remote={exams:[]};
   try{
-    const j=await gsPost({action:'push',token:GS.tok||'',source:'thong-ke-diem-toan',sentAt:new Date().toISOString(),classes:list});
-    const ok=!!(j&&j.ok);const msg=ok?(j.unconfirmed?j.msg:'Đã đẩy '+list.length+' lớp ('+list.map(x=>x.name).join(', ')+') lên Google Sheet.'):'Không đẩy được: '+((j&&j.error)||'phản hồi lạ');
-    GS.last={ok,t:Date.now(),msg};saveGs();gsStat(msg+' ('+new Date().toLocaleTimeString('vi-VN')+')',ok?'ok':'bad');toast(ok?'Đã đẩy điểm lên Google Sheet':'Đẩy điểm lên Google Sheet thất bại');return ok;
+    gsStat(mode==='pull'?'Đang lấy dữ liệu từ Google Sheet...':'Đang đồng bộ với Google Sheet...');
+    if(mode!=='push'){
+      const r=await gsPost({action:'pull',token:GS.tok||''});
+      if(r.unconfirmed)throw new Error('Trình duyệt không đọc được phản hồi từ Google. Kiểm tra quyền truy cập Web App phải là "Bất kỳ ai".');
+      if(!r.ok)throw new Error(r.error||'phản hồi lạ');
+      if(!(r.v>=3))throw new Error('Mã Apps Script chưa phải bản mới nhất (cần bản 3, có cột Khối). Hãy dán mã mới và tạo phiên bản triển khai mới.');
+      remote=r;const n=gsMerge(r);
+      if(n.c||n.s||n.e||n.u)parts.push('lấy về '+[n.e&&n.e+' đợt mới',n.u&&n.u+' đợt cập nhật',n.c&&n.c+' lớp mới',n.s&&n.s+' học sinh mới'].filter(Boolean).join(', '));
+      else parts.push('không có dữ liệu mới trên Sheet');
+    }
+    if(mode!=='pull'){
+      const idx={};(remote.exams||[]).forEach(e=>idx[e.fileName+'|'+(e.date||'')]=e.upd||0);
+      S.files.forEach(f=>{if(!f.upd)f.upd=Date.now()});saveExams();
+      const ex=S.files.filter(f=>{const k=f.fileName+'|'+(f.date||'');return !(k in idx)||f.upd>idx[k]||mode==='push'});
+      const cl=classes.filter(c=>c.students.length).map(c=>({name:c.name,students:c.students.map(s=>({name:s.name,dob:s.dob||'',acc:s.acc||''}))}));
+      const mats=classes.map(gsMatrix).filter(Boolean);
+      const r=await gsPost({action:'push',token:GS.tok||'',source:'thong-ke-diem-toan',sentAt:new Date().toISOString(),classes:cl,
+        exams:ex.map(f=>({fileName:f.fileName,label:f.label,date:f.date||'',grade:f.grade||'',upd:f.upd,rows:f.rows.map(x=>({name:x.name,acc:x.acc||'',dob:x.dob||'',cls:x.cls||'',score:x.score==null?null:x.score,viol:x.viol||0,status:x.status||'',dur:x.dur||0}))})),matrices:mats});
+      if(!r.unconfirmed&&!r.ok)throw new Error(r.error||'phản hồi lạ');
+      parts.push(r.unconfirmed?'đã gửi '+ex.length+' đợt, '+cl.length+' lớp (chưa xác nhận được, hãy mở Sheet kiểm tra)':'đẩy lên '+ex.length+' đợt, '+cl.length+' lớp'+(r.skipped?' ('+r.skipped+' đợt trên Sheet mới hơn nên giữ nguyên)':''));
+    }
+    const msg='Xong: '+parts.join('; ')+'.';GS.last={ok:true,t:Date.now(),msg};saveGs();gsStat(msg+' ('+new Date().toLocaleTimeString('vi-VN')+')','ok');
+    if(!quiet)toast('Đã đồng bộ với Google Sheet');gsRefresh();return true;
   }catch(e){
-    const msg='Không đẩy được: '+(e.name==='AbortError'?'quá thời gian chờ':'lỗi mạng hoặc địa chỉ sai')+'.';
-    GS.last={ok:false,t:Date.now(),msg};saveGs();gsStat(msg,'bad');toast('Đẩy điểm lên Google Sheet thất bại');return false;
+    const msg='Không đồng bộ được: '+(e.name==='AbortError'?'quá thời gian chờ':(e.message&&!/Failed to fetch|NetworkError/i.test(e.message)?e.message:'lỗi mạng hoặc địa chỉ sai'))+'.';
+    GS.last={ok:false,t:Date.now(),msg};saveGs();gsStat(msg,'bad');if(!quiet)toast('Đồng bộ Google Sheet thất bại');return false;
   }finally{gsBusy=false}
 }
-function gsAuto(ids){if(GS.auto&&GS.url)gsPush(ids,true)}
-function gsRead(){GS.url=$('#gsUrl').value.trim();GS.tok=$('#gsTok').value.trim();GS.auto=$('#gsAuto').checked;saveGs()}
-['gsUrl','gsTok'].forEach(i=>$('#'+i).addEventListener('change',gsRead));$('#gsAuto').addEventListener('change',gsRead);
+function gsAuto(){if(GS.auto&&GS.url)gsSync('both',true)}
+function gsRead(){GS.url=$('#gsUrl').value.trim();GS.tok=$('#gsTok').value.trim();GS.auto=$('#gsAuto').checked;GS.pull=$('#gsPull').checked;saveGs()}
+['gsUrl','gsTok'].forEach(i=>$('#'+i).addEventListener('change',gsRead));['gsAuto','gsPull'].forEach(i=>$('#'+i).addEventListener('change',gsRead));
 $('#gsTest').addEventListener('click',async()=>{
   gsRead();if(!GS.url)return gsStat('Hãy dán địa chỉ Web App trước.','bad');
   gsStat('Đang kiểm tra...');
-  try{const j=await gsPost({action:'ping',token:GS.tok||''});gsStat(j&&j.ok?(j.msg||'Kết nối tốt'):'Lỗi: '+((j&&j.error)||'phản hồi lạ'),j&&j.ok?'ok':'bad')}
+  try{const j=await gsPost({action:'ping',token:GS.tok||''});
+    if(j.unconfirmed)gsStat('Đã gửi, nhưng trình duyệt không đọc được phản hồi. Kiểm tra quyền "Bất kỳ ai" của Web App.','bad');
+    else if(!j.ok)gsStat('Lỗi: '+(j.error||'phản hồi lạ'),'bad');
+    else gsStat((j.msg||'Kết nối tốt')+(j.v>=3?'. Mã script là bản mới nhất.':'. Mã script là bản cũ, hãy dán mã mới ở bên dưới (bản 3, có phân khối).'),j.v>=3?'ok':'bad')}
   catch(e){gsStat('Không kết nối được. Kiểm tra địa chỉ và quyền truy cập "Bất kỳ ai".','bad')}
 });
-$('#gsPushCur').addEventListener('click',()=>{gsRead();if(!getClass())return gsStat('Chưa chọn lớp (vào tab Thống kê điểm để chọn).','bad');gsPush([S.classId])});
-$('#gsPushAll').addEventListener('click',()=>{gsRead();gsPush(classes.map(c=>c.id))});
+$('#gsSync').addEventListener('click',()=>{gsRead();gsSync('both')});
+$('#gsPullBtn').addEventListener('click',()=>{gsRead();gsSync('pull')});
 $('#gsCopy').addEventListener('click',async()=>{const t=$('#gsCode');try{await navigator.clipboard.writeText(GS_CODE);toast('Đã sao chép mã')}catch(e){t.focus();t.select();toast('Đã chọn sẵn mã, bấm Ctrl+C để sao chép')}});
+setTimeout(()=>{if(GS.pull&&GS.url)gsSync('pull',true)},700);
 
 /* ---------- sao lưu ---------- */
 function renderBackup(){
